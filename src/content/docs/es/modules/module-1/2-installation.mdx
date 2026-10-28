@@ -1,0 +1,216 @@
+---
+title: 1.2 Instalación
+description: Guía profunda para entender el particionamiento manual, el árbol de directorios y la configuración de red por comandos durante una instalación Headless.
+sidebar:
+  order: 3
+---
+
+import { Aside, Steps, FileTree, LinkCard } from "@astrojs/starlight/components";
+import PreCheck from "@/components/tutorial/PreCheck.astro";
+import MultipleChoice from "@/components/tutorial/MultipleChoice.astro";
+import Option from "@/components/tutorial/Option.astro";
+
+<PreCheck>
+  - Comprenderás la necesidad de separar el gestor de arranque raíz (`/boot/efi`) de la ruta principal (`/`).
+  - Distinguirás la utilidad de los directorios vitales del FHS como `/etc` y `/var`.
+  - Aprenderás a configurar una red Wi-Fi desde terminal pura mediante `nmcli` o `wpa_supplicant`.
+</PreCheck>
+
+Pese a que distribuciones como Ubuntu ofrecen instaladores gráficos o semi-gráficos (TUI) muy sencillos, un verdadero SysAdmin debe saber qué ocurre bajo el capó. Entender una instalación manual (similar a como se instala Arch Linux, pero aplicada a conceptos de Debian) cimenta tu conocimiento sobre cómo respira el sistema operativo.
+
+Cuando instalas un sistema Linux sin interfaz gráfica, tienes que ocuparte de tres pilares fundamentales manualmente: **el disco**, **los archivos base** y **la red**.
+
+---
+
+## 1. El Esquema de Particionamiento
+
+Antes de poder guardar un solo archivo, necesitas preparar el disco duro físico. En Linux, no existen las "unidades C: o D:". Existe un único árbol jerárquico que comienza en la raíz (`/`), y los discos físicos se "montan" (enganchan) en ramas de este árbol.
+
+Para poder arrancar un sistema moderno (UEFI), debes realizar el siguiente esquema de particiones mínimo y profesional:
+
+<Steps>
+
+1. **Crear la partición EFI (`/boot/efi`)**: Configura un espacio pequeño (aprox. 500MB) formateado en `FAT32`. Es donde el firmware de la placa base busca el gestor de arranque (GRUB) para encender el equipo.
+
+2. **Crear la partición Swap**: Asigna espacio de intercambio usado como "RAM de emergencia". Si la máquina se queda sin memoria física, usa este espacio en disco. En servidores de bases de datos a veces se omite o se maneja como un archivo, pero tradicionalmente se le asigna su propia partición (ej. 2GB o el tamaño de la RAM).
+
+3. **Crear la partición Raíz (`/`)**: Crea esta partición y formatéala clásicamente en `ext4` o `xfs`. Contendrá todo el sistema operativo.
+
+</Steps>
+
+En instalaciones de grado empresarial, es común separar `/home` (datos de usuarios) o `/var` (bases de datos y logs) en particiones o discos independientes para evitar que un log descontrolado llene el disco e impida arrancar el sistema.
+
+<Aside type="tip">
+  **Herramientas CLI para Discos:** Durante una instalación manual, utilizarás
+  comandos como `fdisk /dev/sda` o `parted` para crear estas particiones, y
+  `mkfs.ext4 /dev/sda3` para darles formato.
+</Aside>
+
+---
+
+## 2. El Árbol de Directorios (FHS)
+
+Una vez el disco está formateado y montado en `/`, se vuelca (o descarga) el sistema operativo base. Linux sigue un estándar llamado _Filesystem Hierarchy Standard_ (FHS). Así es como se organiza tu disco:
+
+<Steps>
+
+4. **Familiarízate con los directorios del sistema**:
+   - `/bin` y `/sbin`: Contienen los binarios (comandos esenciales como `ls`, `cp`, `ip`).
+   - `/boot`: El Kernel (`vmlinuz`) y los archivos de arranque inicial.
+   - `/dev`: "Device". Archivos especiales que representan tu hardware. `/dev/sda` es tu disco duro, `/dev/null` es el agujero negro del sistema.
+   - `/etc`: El corazón de la configuración. **Si necesitas cambiar cómo se comporta un programa globalmente, el archivo de texto está aquí.** (ej. `/etc/ssh/sshd_config`, `/etc/passwd`).
+   - `/home`: Las carpetas personales de cada usuario regular (ej. `/home/juan`).
+   - `/root`: La carpeta personal del superusuario (administrador supremo). Separada de `/home` por seguridad.
+   - `/tmp`: Archivos temporales. **Se borra automáticamente** en cada reinicio. No guardes nada importante aquí.
+   - `/usr`: Programas, librerías y utilidades no esenciales para el arranque instalados por el usuario/sistema (`/usr/bin`).
+   - `/var`: "Variable". Datos que crecen y cambian frecuentemente. Aquí viven los registros del sistema (`/var/log`), bases de datos y webs (`/var/www`).
+
+</Steps>
+
+<FileTree>
+- / *Directorio raíz del sistema*
+  - bin/ Binarios esenciales (`ls`, `cp`, `ip`…)
+  - sbin/ Binarios del sistema para administración
+  - boot/ Kernel (`vmlinuz`) y archivos de arranque
+    - efi/ Partición EFI — aquí vive el GRUB
+  - dev/ Archivos especiales que representan hardware (`sda`, `null`…)
+  - etc/ **Corazón de la configuración global del sistema**
+    - ssh/
+      - sshd_config
+    - passwd
+  - home/ Carpetas personales de los usuarios regulares
+    - juan/
+  - root/ Carpeta personal del superusuario (separada por seguridad)
+  - tmp/ Temporales — **se borra en cada reinicio**
+  - usr/ Programas e utilidades no esenciales para el arranque
+    - bin/
+    - lib/
+  - var/ Datos variables que crecen con el tiempo
+    - log/ Registros del sistema
+    - www/ Webs y bases de datos
+</FileTree>
+
+<LinkCard
+  title="Esquemas de particionamiento habituales"
+  description="Mínimo, Desktop (/home separado) y Servidor: cómo quedan los discos montados en cada caso."
+  href="/es/modules/module-1/3-partitioning-boot/#3-esquemas-de-particionamiento-habituales"
+/>
+
+---
+
+## 3. Configuración de Red por Consola (Wi-Fi y Ethernet)
+
+Durante una instalación TUI (Text User Interface) o consola pura, lo más fácil es conectar un cable Ethernet. El sistema usualmente solicita una IP automáticamente mediante DHCP (`dhclient eth0`).
+
+¿Pero qué pasa si estás en un servidor remoto casero o un portátil sin puerto Ethernet? **Necesitas configurar el Wi-Fi desde la terminal de comandos.**
+
+### Usando NetworkManager (`nmcli`)
+
+En la familia Debian moderna, y especialmente si herramientas comunitarias están presentes, la forma más estándar para el LFCS de gestionar redes es mediante `nmcli` (Network Manager Command Line Interface).
+
+<Steps>
+
+5. **Revisar si la tarjeta Wi-Fi es detectada**:
+
+   Muestra todos los dispositivos de red. Deberías ver algo como `wlan0` o `wlp3s0` con el tipo `wifi`.
+
+   ```bash
+   nmcli device status
+   ```
+
+6. **Escanear redes disponibles**:
+
+   Muestra las redes Wi-Fi al alcance y su fuerza de señal.
+
+   ```bash
+   nmcli device wifi list
+   ```
+
+7. **Conectarse a una red**:
+
+   Conecta y guarda la contraseña para futuros reinicios.
+
+   ```bash
+   nmcli device wifi connect "NombreDeTuRed" password "TuContraseñaSecreta"
+   ```
+
+8. **Verificar la IP asignada**:
+
+   ```bash
+   ip a
+   ```
+
+</Steps>
+
+### Alternativa de bajo nivel: `wpa_supplicant`
+
+Si el medio de instalación es extremadamente mínimo (como el instalador clásico de Debian o Arch), `NetworkManager` podría no estar instalado aún. En su lugar, se utilizan herramientas crudas. Para esto, se genera un archivo de configuración inyectando tu contraseña cifrada y luego se llama al demonio:
+
+<Steps>
+
+5. **Generar la configuración de la red**:
+
+   ```bash
+   wpa_passphrase "NombreDeTuRed" "Contraseña" > /etc/wpa_supplicant/wpa_supplicant.conf
+   ```
+
+6. **Iniciar la conexión en segundo plano**:
+
+   Asumiendo que tu interfaz es `wlan0`.
+
+   ```bash
+   wpa_supplicant -B -i wlan0 -c /etc/wpa_supplicant/wpa_supplicant.conf
+   ```
+
+7. **Solicitar una dirección IP**:
+
+   ```bash
+   dhclient wlan0
+   ```
+
+</Steps>
+
+Con internet funcionando, el sistema ya puede descargar el resto de paquetes (`apt install ...`) para finalizar la instalación y reiniciar hacia tu nuevo Linux.
+
+---
+
+## Comprueba tus conocimientos
+
+1. De acuerdo con el FHS, si quieres modificar la configuración global del servicio SSH para cambiar su puerto, ¿en qué directorio padre buscarías su archivo de configuración?
+
+   <MultipleChoice>
+     <Option>
+       En `/var`, ya que es una configuración de red que cambia frecuentemente.
+     </Option>
+     <Option isCorrect>
+       En `/etc`, ya que allí residen los archivos de configuración globales del
+       sistema.
+     </Option>
+     <Option>
+       En `/boot`, porque la red debe configurarse antes que el Kernel.
+     </Option>
+   </MultipleChoice>
+
+2. Si estás instalando Debian en un servidor moderno con UEFI, ¿Qué sistema de archivos y propósito tiene típicamente la partición montada en `/boot/efi`?
+
+   <MultipleChoice>
+     <Option isCorrect>
+       Está formateada en `FAT32` y sirve para que el firmware de la placa base
+       encuentre el `Bootloader` (ej. GRUB).
+     </Option>
+     <Option>
+       Está formateada en `ext4` y se utiliza como espacio de intercambio
+       (Swap).
+     </Option>
+     <Option>
+       Es la partición cifrada donde residen las bases de datos de máxima
+       seguridad.
+     </Option>
+   </MultipleChoice>
+
+3. ¿Cuál de estos comandos de `NetworkManager` te permite escanear las redes Wi-Fi cercanas desde la terminal?
+   <MultipleChoice>
+     <Option>`ip a`</Option>
+     <Option>`dhclient wifi`</Option>
+     <Option isCorrect>`nmcli device wifi list`</Option>
+   </MultipleChoice>

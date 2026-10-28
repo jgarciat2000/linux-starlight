@@ -1,0 +1,67 @@
+---
+title: Módulo 5. Gestión de Almacenamiento y LVM
+description: Clase 5 - Dominando el ciclo de vida de los discos duros, desde el bloque crudo hasta los Volúmenes Lógicos.
+sidebar:
+  order: 1
+---
+
+---
+
+## **Duración Estimada**: 4 horas (Clase 5)
+
+Si los procesos son el cerebro de un servidor, y la red su sistema nervioso, **el almacenamiento es el corazón**. Aquí es donde residen los datos de la empresa, lo único que realmente importa proteger y escalar.
+
+Esta Clase 5 (llegando a 20 horas de las 32 totales del curso LFCS) se centrará exclusivamente en la física y lógica del almacenamiento. Olvídate de la clásica "Unidad C:" de Windows. En Linux todo es un archivo crudo, y tú eres el responsable de decidir cómo dividirlo, cómo pintarlo con un sistema de archivos para que sea legible y dónde engancharlo vivo al árbol de directorios de Debian.
+
+## Mentalidad LFCS para este módulo
+
+Manejar discos de producción en terminal requiere tener los nervios de acero de un artificiero.
+
+- Un `Enter` tecleado a destiempo en un comando `fdisk` erróneo purgará irreparablemente la tabla de particiones borrando terabytes de bases de datos para siempre.
+- Aprenderás por qué en servidores corporativos "enchufar un disco y particionarlo directo" ya se considera una práctica arcaica y obsoleta del pasado, a favor de la elasticidad que otorgan los **Volúmenes Lógicos (LVM)**, los cuales permiten expandir Discos Duros "a trozos" sin tener que apagar la máquina, igualando las capacidades de elasticidad de la nube (AWS/Azure).
+
+---
+
+## Temas de la Clase 5
+
+### [5.1 Anatomía del Bloque (Particionado)](/es/modules/module-5/1-disks-partitions/)
+
+- Comprender la filosofía "Todo es un archivo" en `/dev/`.
+- `lsblk`: Tu radar para encontrar discos perdidos.
+- Diferencia de arquitecturas entre las tablas MBR clásicas (`fdisk`) y las modernas GPT (`parted`) sin límites de 2TB.
+
+### [5.2 Sistemas de Archivos y Montaje Permanente](/es/modules/module-5/2-filesystems-mount/)
+
+- Darle forma legible al disco crudo usando formateadores: Familia `mkfs` (`ext4`, `xfs`).
+- Inyectar el disco a mano en la rama del sistema (`mount`) y extirparlo de manera segura (`umount`).
+- Hacer que el disco sobreviva a los apagados aprendiendo a leer Identificadores Únicos (`blkid`) y editando la tabla divina: `/etc/fstab`.
+
+### [5.3 LVM (Logical Volume Management)](/es/modules/module-5/3-lvm-management/)
+
+- Entender el concepto de LVM: Virtualización del almacenamiento separando la física del espacio visual del usuario final.
+- **La Tríada Estricta**: Entender la conversión paso a paso de Physical Volumes (`pvcreate`) a Volume Groups (`vgcreate`) y finalmente Logical Volumes (`lvcreate`).
+- Operativa avanzada de rescate: Redimensionar en caliente el tamaño de un disco mientras Nginx o la Base de datos siguen escribiendo en él (`lvextend`, `resize2fs`).
+
+### [5.4 Gestión de Swap](/es/modules/module-5/4-swap/)
+
+- Ver el estado actual del swap
+- Crear un fichero de swap es más flexible que una partición: puedes crearlo en cualquier momento sin reparticionar.
+- vm.swappiness controla cuánto prefiere el kernel usar swap frente a liberar caché de página
+
+### [5.5 RAID por Software (mdadm)](/es/modules/module-5/5-raid/)
+
+- RAID (Redundant Array of Independent Disks) agrupa varios discos físicos para comportarse como uno solo, combinando redundancia y/o rendimiento
+- Este es uno de los escenarios más frecuentes en el examen LFCS. 7. Simular fallo y recuperación (LFCS escenario clave)
+
+### [5.6 Almacenamiento Cifrado (LUKS)](/es/modules/module-5/6-luks/)
+
+- LUKS (Linux Unified Key Setup) es el estándar de cifrado de discos en Linux. Cifra el contenido completo de una partición o disco: aunque alguien extraiga el disco físicamente, sin la clave solo verá datos aleatorios. Es el objetivo de almacenamiento más demandado en el examen LFCS.
+
+### [5.7 Cuotas de Disco](/es/modules/module-5/7-quotas/)
+
+- Las cuotas de disco limitan cuánto espacio en disco (y cuántos inodos) puede usar cada usuario o grupo en un sistema de ficheros. 
+
+## [5.8 NFS — Almacenamiento en Red](/es/modules/module-5/8-nfs/)
+
+- NFS (Network File System) permite que un servidor exporte directorios a través de la red para que otros sistemas Linux los monten como si fueran discos locales.
+- Es el protocolo de almacenamiento compartido más extendido en entornos Linux

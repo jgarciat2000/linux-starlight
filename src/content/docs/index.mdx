@@ -1,0 +1,53 @@
+---
+title: Bienvenido a Linux Starlight
+description: Un curso completo para Administradores de Sistemas Junior.
+template: splash
+hero:
+  tagline: Navega el universo Linux con confianza.
+  image:
+    file: ../../assets/houston.webp
+  actions:
+    - text: Empezar
+      link: /es/modules/module-1/
+      icon: right-arrow
+      variant: primary
+---
+
+import { Card, CardGrid, Aside } from "@astrojs/starlight/components";
+
+### Resumen de contenido
+
+<CardGrid stagger>
+    <Card title="1. Introducción y Despliegue" icon="rocket">
+        **Introducción a Linux y Despliegue Inicial** 
+        Primeros pasos, instalación y conceptos básicos del kernel y la shell.
+    </Card>
+    <Card title="2. Comandos y Shell" icon="seti:html">
+        **Uso de la Shell y Comandos Fundamentales** 
+        Dominio de la línea de comandos, tuberías, redirecciones y herramientas esenciales.
+    </Card>
+    <Card title="3. Administración" icon="setting">
+        **Administración del Sistema: Usuarios, Paquetes y Servicios** 
+        Gestión de permAisos, control de procesos y mantenimiento de software.
+    </Card>
+    <Card title="4. Sistema y Servicios" icon="document">
+        **Almacenamiento y Sistemas de Archivos** 
+        Particionado, montado de discos, LVM y gestión de cuotas.
+    </Card>
+    <Card title="5. Almacenamiento y LVM" icon="rss">
+        **Administración de discos duros y volúmenes lógicos dinámicos.** 
+        MBR vs GPT, `lsblk`, particionado con `fdisk` y `parted`.
+    </Card>
+    <Card title="6. Software y Tareas Automáticas" icon="seti:javascript">
+        **Software y Tareas Automáticas** 
+        Mantenimiento de paquetería, compilación de fuentes y programación temporal.
+    </Card>
+    <Card title="7. Redes y Seguridad" icon="seti:javascript">
+        **Redes y Seguridad** 
+        Configuración de red, cortafuegos, SSH y bastionado del sistema.
+    </Card>
+    <Card title="8. Scripting y Automatización" icon="seti:javascript">
+        **Scripting y Automatización** 
+        Bash scripting avanzado y preparación para escenarios de certificación.
+    </Card>
+</CardGrid>

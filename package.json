@@ -1,0 +1,33 @@
+{
+  "name": "linux-starlight",
+  "type": "module",
+  "version": "0.0.1",
+  "author": "casset.cat",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.39.3",
+    "astro": "^6.4.4",
+    "astro-icon": "^1.1.5",
+    "canvas-confetti": "^1.9.4",
+    "mermaid": "^11.12.3",
+    "playwright": "^1.58.2",
+    "rehype-mermaid": "^3.0.0",
+    "sharp": "^0.34.2",
+    "starlight-theme-nova": "^0.11.5"
+  },
+  "devDependencies": {
+    "@types/canvas-confetti": "^1.9.0",
+    "@types/hast": "^3.0.4",
+    "@types/node": "^22.15.3",
+    "hastscript": "^9.0.1",
+    "prettier": "^3.5.3",
+    "unist-util-visit": "^5.1.0"
+  },
+  "packageManager": "pnpm@10.11.1"
+}

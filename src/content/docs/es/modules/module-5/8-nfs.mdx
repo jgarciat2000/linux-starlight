@@ -1,0 +1,273 @@
+---
+title: 5.8 NFS — Almacenamiento en Red
+description: Comparte directorios entre servidores Linux con NFS. Configura el servidor de exportaciones, monta el recurso en el cliente y hazlo permanente con /etc/fstab.
+sidebar:
+  order: 9
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+**NFS** (Network File System) permite que un servidor exporte directorios a través de la red para que otros sistemas Linux los monten como si fueran discos locales. Es el protocolo de almacenamiento compartido más extendido en entornos Linux: clusters de HPC, `/home` centralizado, despliegues de contenedores y laboratorios de virtualización lo usan a diario.
+
+---
+
+## 1. Roles: servidor y cliente
+
+<table>
+    <thead>
+        <tr>
+            <th>Rol</th>
+            <th>Paquete</th>
+            <th>Qué hace</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Servidor</td>
+            <td><code>nfs-kernel-server</code></td>
+            <td>Exporta directorios a la red</td>
+        </tr>
+        <tr>
+            <td>Cliente</td>
+            <td><code>nfs-common</code></td>
+            <td>Monta los directorios del servidor</td>
+        </tr>
+    </tbody>
+</table>
+
+Un mismo equipo puede ser servidor y cliente simultáneamente.
+
+---
+
+## 2. Configurar el servidor NFS
+
+```bash
+# Instalar el servidor
+sudo apt install nfs-kernel-server
+
+# Verificar que el servicio está activo
+systemctl status nfs-kernel-server
+```
+
+### Crear y exportar un directorio
+
+```bash
+# Crear el directorio a compartir
+sudo mkdir -p /srv/compartido
+sudo chown nobody:nogroup /srv/compartido
+sudo chmod 755 /srv/compartido
+```
+
+Editar `/etc/exports` para definir qué se exporta y a quién:
+
+```bash
+sudo nano /etc/exports
+```
+
+```
+# Formato: directorio  cliente(opciones)
+
+# Compartir con una IP específica (lectura/escritura)
+/srv/compartido  192.168.1.100(rw,sync,no_subtree_check)
+
+# Compartir con toda una subred (solo lectura)
+/srv/compartido  192.168.1.0/24(ro,sync,no_subtree_check)
+
+# Compartir con cualquier host (solo en redes internas confiables)
+/srv/compartido  *(rw,sync,no_subtree_check,no_root_squash)
+```
+
+### Opciones de exportación más importantes
+
+<table>
+    <thead>
+        <tr>
+            <th>Opción</th>
+            <th>Significado</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>rw</code></td>
+            <td>Lectura y escritura</td>
+        </tr>
+        <tr>
+            <td><code>ro</code></td>
+            <td>Solo lectura</td>
+        </tr>
+        <tr>
+            <td><code>sync</code></td>
+            <td>Escribe en disco antes de responder al cliente (más seguro)</td>
+        </tr>
+        <tr>
+            <td><code>async</code></td>
+            <td>Responde antes de escribir (más rápido, riesgo de pérdida)</td>
+        </tr>
+        <tr>
+            <td><code>no_subtree_check</code></td>
+            <td>Desactiva verificación de subárbol (mejora rendimiento, recomendado)</td>
+        </tr>
+        <tr>
+            <td><code>root_squash</code></td>
+            <td>Mapea root del cliente a nobody (seguridad — <strong>por defecto</strong>)</td>
+        </tr>
+        <tr>
+            <td><code>no_root_squash</code></td>
+            <td>El root del cliente tiene root en el servidor (peligroso)</td>
+        </tr>
+        <tr>
+            <td><code>all_squash</code></td>
+            <td>Mapea todos los usuarios a nobody</td>
+        </tr>
+    </tbody>
+</table>
+
+Aplicar los cambios sin reiniciar el servicio:
+
+```bash
+# Reexportar todas las entradas de /etc/exports
+sudo exportfs -ra
+
+# Ver qué se está exportando actualmente
+sudo exportfs -v
+```
+
+### Firewall y puertos NFS
+
+```bash
+# NFS usa varios puertos — abrir en UFW
+sudo ufw allow from 192.168.1.0/24 to any port nfs
+sudo ufw allow 2049/tcp
+sudo ufw allow 2049/udp
+```
+
+---
+
+## 3. Configurar el cliente NFS
+
+```bash
+# Instalar las herramientas de cliente
+sudo apt install nfs-common
+```
+
+### Montar temporalmente
+
+```bash
+# Ver qué exporta el servidor (desde el cliente)
+showmount -e 192.168.1.10
+
+# Crear el punto de montaje local
+sudo mkdir -p /mnt/nfs/compartido
+
+# Montar el recurso NFS
+sudo mount -t nfs 192.168.1.10:/srv/compartido /mnt/nfs/compartido
+
+# Verificar
+df -h /mnt/nfs/compartido
+ls /mnt/nfs/compartido
+```
+
+### Montar permanentemente (/etc/fstab)
+
+```bash
+sudo nano /etc/fstab
+```
+
+```
+# Servidor NFS
+192.168.1.10:/srv/compartido  /mnt/nfs/compartido  nfs  defaults,_netdev  0  0
+```
+
+La opción `_netdev` indica que este dispositivo requiere red: systemd esperará a que la red esté activa antes de intentar montarlo (evita errores al arrancar).
+
+```bash
+# Probar el fstab sin reiniciar
+sudo mount -a
+```
+
+---
+
+## 4. Opciones avanzadas de montaje cliente
+
+```bash
+# Montaje con opciones de rendimiento y timeout
+sudo mount -t nfs \
+  -o rw,hard,intr,rsize=8192,wsize=8192,timeo=14 \
+  192.168.1.10:/srv/compartido /mnt/nfs/compartido
+```
+
+<table>
+    <thead>
+        <tr>
+            <th>Opción</th>
+            <th>Significado</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>hard</code></td>
+            <td>Reintenta indefinidamente si el servidor cae (para datos críticos)</td>
+        </tr>
+        <tr>
+            <td><code>soft</code></td>
+            <td>Devuelve error al proceso si el servidor no responde (para datos no críticos)</td>
+        </tr>
+        <tr>
+            <td><code>intr</code></td>
+            <td>Permite interrumpir operaciones bloqueadas con Ctrl+C)</td>
+        </tr>
+        <tr>
+            <td><code>rsize/wsize</code></td>
+            <td>Tamaño de los bloques de lectura/escritura (en bytes)</td>
+        </tr>
+        <tr>
+            <td><code>timeo</code></td>
+            <td>Timeout en décimas de segundo antes de reintentar)</td>
+        </tr>
+    </tbody>
+</table>
+
+---
+
+## 5. Desmontar y gestión
+
+```bash
+# Desmontar un recurso NFS
+sudo umount /mnt/nfs/compartido
+
+# Si da "device is busy", ver qué proceso lo usa
+sudo lsof /mnt/nfs/compartido
+sudo fuser -m /mnt/nfs/compartido
+
+# Forzar desmontaje (si el servidor ya no está disponible)
+sudo umount -f -l /mnt/nfs/compartido
+```
+
+---
+
+## 6. Diagnóstico de problemas NFS
+
+```bash
+# En el servidor: verificar exportaciones activas
+sudo exportfs -v
+
+# En el servidor: ver conexiones NFS activas
+sudo nfsstat -s
+
+# En el cliente: ver estadísticas de montaje
+nfsstat -c
+
+# Comprobar que el servidor NFS escucha en el puerto 2049
+sudo ss -tulpn | grep :2049
+
+# En el cliente: probar conectividad al puerto NFS
+telnet 192.168.1.10 2049
+```
+
+<Aside type="caution" title="NFS y seguridad">
+NFS confía en las IPs de los clientes para la autenticación. En una red no confiable, usa NFSv4 con Kerberos (`sec=krb5`) o considera SSHFS como alternativa más segura. Para el examen LFCS, NFSv4 básico es suficiente.
+</Aside>
+
+<Aside type="tip" title="NFSv3 vs NFSv4">
+El cliente moderno negocia automáticamente NFSv4 si el servidor lo soporta. NFSv4 usa un único puerto (2049), simplificando las reglas de firewall. Si necesitas NFSv3 explícitamente, usa `-o vers=3` al montar.
+</Aside>
